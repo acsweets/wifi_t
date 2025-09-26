@@ -1,0 +1,35 @@
+{
+    "name": "wifi_t",
+    "short_name": "wifi_t",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "该项目基于 Flutter 开发，旨在模拟不同设备在的局域网数据交互场景，实现双向实时通信。通过 TCP 或 WebSocket 协议，手机与设备（可用另一台手机模拟）能够互相发送文本和图片数据，实现投屏、消息传递和数据回传功能。",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
