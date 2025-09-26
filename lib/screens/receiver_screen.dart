@@ -200,7 +200,7 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
           ),
           if (_isReceivingVideo)
             Container(
-              height: 200,
+              height: 220,
               margin: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.green),
@@ -213,12 +213,11 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('摄像头数据可视化'),
-                            Text('大小: ${_currentVideoFrame!.length} 字节'),
+                            Text('摄像头数据大小: ${_currentVideoFrame!.length} 字节'),
                             const SizedBox(height: 10),
                             Container(
-                              width: 150,
-                              height: 100,
+                              width: 100,
+                              height: 150,
                               decoration: BoxDecoration(
                                 border: Border.all(color: Colors.black),
                               ),
@@ -285,12 +284,16 @@ class DataVisualizationPainter extends CustomPainter {
     final paint = Paint();
     const imageWidth = 80;
     const imageHeight = 60;
-    final pixelWidth = size.width / imageWidth;
-    final pixelHeight = size.height / imageHeight;
+    final pixelWidth = size.width / imageHeight; // 交换宽高
+    final pixelHeight = size.height / imageWidth;
     
     for (int i = 0; i < data.length && i < imageWidth * imageHeight; i++) {
-      final x = (i % imageWidth) * pixelWidth;
-      final y = (i ~/ imageWidth) * pixelHeight;
+      final srcX = i % imageWidth;
+      final srcY = i ~/ imageWidth;
+      
+      // 旋转-90度：(x,y) -> (height-1-y, x)
+      final x = (imageHeight - 1 - srcY) * pixelWidth;
+      final y = srcX * pixelHeight;
       final gray = data[i] / 255.0;
       
       paint.color = Color.fromRGBO(
