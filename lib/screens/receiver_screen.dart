@@ -283,12 +283,14 @@ class DataVisualizationPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint();
-    final pixelWidth = size.width / 150;
-    final pixelHeight = size.height / 100;
+    const imageWidth = 80;
+    const imageHeight = 60;
+    final pixelWidth = size.width / imageWidth;
+    final pixelHeight = size.height / imageHeight;
     
-    for (int i = 0; i < data.length && i < 15000; i++) {
-      final x = (i % 150) * pixelWidth;
-      final y = (i ~/ 150) * pixelHeight;
+    for (int i = 0; i < data.length && i < imageWidth * imageHeight; i++) {
+      final x = (i % imageWidth) * pixelWidth;
+      final y = (i ~/ imageWidth) * pixelHeight;
       final gray = data[i] / 255.0;
       
       paint.color = Color.fromRGBO(

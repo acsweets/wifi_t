@@ -52,22 +52,28 @@ class VideoStreamService {
 
   Future<Uint8List?> _convertToJPEG(CameraImage image) async {
     try {
-      // 简化处理：只取Y通道数据并压缩
       final yPlane = image.planes[0];
-      final yBytes = yPlane.bytes;
+      final width = image.width;
+      final height = image.height;
       
-      // 取样压缩：每4个像素取1个
-      final compressedSize = (yBytes.length / 16).round();
-      final compressedData = Uint8List(compressedSize);
+      // 取更大的数据块，但仍然要压缩
+      const targetWidth = 80;
+      const targetHeight = 60;
+      final targetData = Uint8List(targetWidth * targetHeight);
       
-      for (int i = 0; i < compressedSize; i++) {
-        final sourceIndex = i * 16;
-        if (sourceIndex < yBytes.length) {
-          compressedData[i] = yBytes[sourceIndex];
+      for (int y = 0; y < targetHeight; y++) {
+        for (int x = 0; x < targetWidth; x++) {
+          final srcX = (x * width / targetWidth).floor();
+          final srcY = (y * height / targetHeight).floor();
+          final srcIndex = srcY * yPlane.bytesPerRow + srcX;
+          
+          if (srcIndex < yPlane.bytes.length) {
+            targetData[y * targetWidth + x] = yPlane.bytes[srcIndex];
+          }
         }
       }
       
-      return compressedData;
+      return targetData;
     } catch (e) {
       print('Image conversion error: $e');
       return null;
