@@ -1,5 +1,6 @@
-
+import 'package:image/image.dart' as img;
 import 'dart:typed_data';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import '../models/message.dart';
@@ -98,21 +99,23 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
     if (frameData == null) return;
     print('解析’frameData');
     try {
-      final decodedImage = await CameraFrameDecoder.decodeYUVToImage(
-        Uint8List.fromList(frameData), 
-        160, 
-        120
-      );
+      final pngBytes = await CameraFrameDecoder.decodeYUVToImage(Uint8List.fromList(frameData), 160, 120);
+
+      if (pngBytes != null) {
+        setState(() {
+          _currentVideoFrame = pngBytes;
+        });
+      }
       
       setState(() {
-        _currentVideoFrame = decodedImage;
+        // _currentVideoFrame = decodedImage;
+
         _isReceivingVideo = true;
       });
     } catch (e) {
       print('Frame decode error: $e');
     }
   }
-
   void _sendReply() {
     final text = _replyController.text.trim();
     if (text.isNotEmpty && _webSocketService.isConnected) {
@@ -221,9 +224,13 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
                               decoration: BoxDecoration(
                                 border: Border.all(color: Colors.black),
                               ),
-                              child: CustomPaint(
-                                painter: DataVisualizationPainter(_currentVideoFrame!),
-                              ),
+                              ///Image.memory(Uint8List) 只能显示 合法的图片编码数据（JPEG、PNG、WebP 等）。
+                              // 原始灰度/相机数据 不是 JPEG/PNG，所以 Image.memory(frameData) 无法显示，或者显示是噪点/灰色。
+                              // 直接用原始 CameraImage 的 bytes 当作 Image.memory 是不行的。
+                              // child: CustomPaint(
+                              //   painter: DataVisualizationPainter(_currentVideoFrame!),
+                              // ),
+                              child: Image.memory(_currentVideoFrame!),
                             ),
                           ],
                         ),
@@ -272,7 +279,88 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
     _mdnsService.stopDiscovery();
     super.dispose();
   }
+  Uint8List convertYUV420ToRGB(CameraImage image) {
+    final width = image.width;
+    final height = image.height;
+
+    final yPlane = image.planes[0].bytes;
+    final uPlane = image.planes[1].bytes;
+    final vPlane = image.planes[2].bytes;
+
+    final rgbBytes = Uint8List(width * height * 4); // RGBA
+
+    int yp = 0;
+    for (int j = 0; j < height; j++) {
+      final uvRow = j ~/ 2;
+      for (int i = 0; i < width; i++) {
+        final uvCol = i ~/ 2;
+
+        final y = yPlane[yp] & 0xff;
+        final u = uPlane[uvRow * (width ~/ 2) + uvCol] & 0xff;
+        final v = vPlane[uvRow * (width ~/ 2) + uvCol] & 0xff;
+
+        // YUV -> RGB
+        int r = (y + 1.402 * (v - 128)).round();
+        int g = (y - 0.344136 * (u - 128) - 0.714136 * (v - 128)).round();
+        int b = (y + 1.772 * (u - 128)).round();
+
+        r = r.clamp(0, 255);
+        g = g.clamp(0, 255);
+        b = b.clamp(0, 255);
+
+        final index = yp * 4;
+        rgbBytes[index] = r;
+        rgbBytes[index + 1] = g;
+        rgbBytes[index + 2] = b;
+        rgbBytes[index + 3] = 255; // alpha
+
+        yp++;
+      }
+    }
+    return rgbBytes;
+  }
 }
+///TODO 使用 camera 插件自带方法
+// Uint8List convertYUV420ToRGB(CameraImage image) {
+//   final width = image.width;
+//   final height = image.height;
+//
+//   final yPlane = image.planes[0].bytes;
+//   final uPlane = image.planes[1].bytes;
+//   final vPlane = image.planes[2].bytes;
+//
+//   final rgbBytes = Uint8List(width * height * 4); // RGBA
+//
+//   int yp = 0;
+//   for (int j = 0; j < height; j++) {
+//     final uvRow = j ~/ 2;
+//     for (int i = 0; i < width; i++) {
+//       final uvCol = i ~/ 2;
+//
+//       final y = yPlane[yp] & 0xff;
+//       final u = uPlane[uvRow * (width ~/ 2) + uvCol] & 0xff;
+//       final v = vPlane[uvRow * (width ~/ 2) + uvCol] & 0xff;
+//
+//       // YUV -> RGB
+//       int r = (y + 1.402 * (v - 128)).round();
+//       int g = (y - 0.344136 * (u - 128) - 0.714136 * (v - 128)).round();
+//       int b = (y + 1.772 * (u - 128)).round();
+//
+//       r = r.clamp(0, 255);
+//       g = g.clamp(0, 255);
+//       b = b.clamp(0, 255);
+//
+//       final index = yp * 4;
+//       rgbBytes[index] = r;
+//       rgbBytes[index + 1] = g;
+//       rgbBytes[index + 2] = b;
+//       rgbBytes[index + 3] = 255; // alpha
+//
+//       yp++;
+//     }
+//   }
+//   return rgbBytes;
+// }
 
 class DataVisualizationPainter extends CustomPainter {
   final Uint8List data;
