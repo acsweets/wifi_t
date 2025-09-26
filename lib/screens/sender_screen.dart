@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:camera/camera.dart';
@@ -8,7 +10,6 @@ import '../models/message.dart';
 import '../services/websocket_service.dart';
 import '../services/mdns_service.dart';
 import '../services/video_stream_service.dart';
-import '../services/video_frame_generator.dart';
 
 class SenderScreen extends StatefulWidget {
   const SenderScreen({super.key});
@@ -142,32 +143,56 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
   Future<void> _startVideoStream() async {
     if (!_webSocketService.isConnected) return;
     
-    setState(() {
-      _isVideoStreaming = true;
-    });
+    try {
+      await _videoStreamService.startVideoStream();
+      
+      setState(() {
+        _isVideoStreaming = true;
+      });
+      
+      _videoStreamService.onFrameReady = (frameData) {
+        if (_webSocketService.isConnected && _isVideoStreaming) {
+          print('Sending camera frame, size: ${frameData.length} bytes');
+          
+          final message = Message(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            type: MessageType.videoFrame,
+            data: frameData,
+            sender: '发送端',
+            timestamp: DateTime.now(),
+            isReceived: false,
+          );
+          _webSocketService.sendMessage(message);
+        }
+      };
+    } catch (e) {
+      print('Error starting camera: $e');
+    }
+  }
+  
+  Future<Uint8List> _generateRealImage() async {
+    // 使用Flutter的Canvas创建真实图像
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final size = const Size(200, 200);
     
-    // 限制帧率为2FPS，发送简单数据
-    _videoStreamTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (_webSocketService.isConnected && _isVideoStreaming) {
-        final frameData = Uint8List.fromList([
-          _frameNumber % 256, 
-          (_frameNumber + 50) % 256, 
-          (_frameNumber + 100) % 256
-        ]);
-        _frameNumber++;
-        print('Sending video frame ${_frameNumber}, size: ${frameData.length} bytes');
-        
-        final message = Message(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          type: MessageType.videoFrame,
-          data: frameData,
-          sender: '发送端',
-          timestamp: DateTime.now(),
-          isReceived: false,
-        );
-        _webSocketService.sendMessage(message);
-      }
-    });
+    // 绘制背景
+    final paint = Paint()..color = Colors.blue;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+    
+    // 绘制动态圆圈
+    paint.color = Colors.white;
+    final time = DateTime.now().millisecondsSinceEpoch / 1000;
+    final x = (sin(time) * 50 + 100).toDouble();
+    final y = (cos(time) * 50 + 100).toDouble();
+    canvas.drawCircle(Offset(x, y), 20, paint);
+    
+    // 转换为PNG
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(size.width.toInt(), size.height.toInt());
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    
+    return byteData!.buffer.asUint8List();
   }
   
   Uint8List _generateCompressedFrame() {
@@ -187,8 +212,7 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
     setState(() {
       _isVideoStreaming = false;
     });
-    _videoStreamTimer?.cancel();
-    _videoStreamTimer = null;
+    _videoStreamService.stopVideoStream();
   }
 
   @override
@@ -297,7 +321,7 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
               ),
             ],
           ),
-          if (_isVideoStreaming)
+          if (_isVideoStreaming && _videoStreamService.controller != null && _videoStreamService.controller!.value.isInitialized)
             Container(
               height: 200,
               margin: const EdgeInsets.symmetric(vertical: 8),
@@ -305,8 +329,9 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
                 border: Border.all(color: Colors.grey),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Center(
-                child: Text('正在发送压缩视频流 (5FPS)', style: TextStyle(fontSize: 16)),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CameraPreview(_videoStreamService.controller!),
               ),
             ),
           const SizedBox(height: 16),

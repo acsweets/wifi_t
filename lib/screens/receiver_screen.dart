@@ -5,6 +5,7 @@ import 'package:network_info_plus/network_info_plus.dart';
 import '../models/message.dart';
 import '../services/websocket_service.dart';
 import '../services/mdns_service.dart';
+import '../services/camera_frame_decoder.dart';
 
 class ReceiverScreen extends StatefulWidget {
   const ReceiverScreen({super.key});
@@ -40,10 +41,7 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
       
       if (message.type == MessageType.videoFrame) {
         print('Video frame received, data length: ${message.data?.length}');
-        setState(() {
-          _currentVideoFrame = message.data != null ? Uint8List.fromList(message.data!) : null;
-          _isReceivingVideo = true;
-        });
+        _decodeAndDisplayFrame(message.data);
       }
     };
   }
@@ -93,6 +91,25 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('服务器已停止')),
       );
+    }
+  }
+
+  Future<void> _decodeAndDisplayFrame(List<int>? frameData) async {
+    if (frameData == null) return;
+    print('解析’frameData');
+    try {
+      final decodedImage = await CameraFrameDecoder.decodeYUVToImage(
+        Uint8List.fromList(frameData), 
+        160, 
+        120
+      );
+      
+      setState(() {
+        _currentVideoFrame = decodedImage;
+        _isReceivingVideo = true;
+      });
+    } catch (e) {
+      print('Frame decode error: $e');
     }
   }
 
@@ -190,15 +207,27 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
                 borderRadius: BorderRadius.circular(8),
               ),
               child: _currentVideoFrame != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('正在接收视频流', style: TextStyle(fontSize: 16, color: Colors.green)),
-                          const SizedBox(height: 8),
-                          Text('数据: ${_currentVideoFrame!.map((b) => b.toString()).join(", ")}'),
-                          Text('大小: ${_currentVideoFrame!.length} 字节'),
-                        ],
+                  ? Container(
+                      color: Colors.grey[300],
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('摄像头数据可视化'),
+                            Text('大小: ${_currentVideoFrame!.length} 字节'),
+                            const SizedBox(height: 10),
+                            Container(
+                              width: 150,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.black),
+                              ),
+                              child: CustomPaint(
+                                painter: DataVisualizationPainter(_currentVideoFrame!),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : const Center(
@@ -244,4 +273,38 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
     _mdnsService.stopDiscovery();
     super.dispose();
   }
+}
+
+class DataVisualizationPainter extends CustomPainter {
+  final Uint8List data;
+  
+  DataVisualizationPainter(this.data);
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    final pixelWidth = size.width / 150;
+    final pixelHeight = size.height / 100;
+    
+    for (int i = 0; i < data.length && i < 15000; i++) {
+      final x = (i % 150) * pixelWidth;
+      final y = (i ~/ 150) * pixelHeight;
+      final gray = data[i] / 255.0;
+      
+      paint.color = Color.fromRGBO(
+        (gray * 255).round(),
+        (gray * 255).round(), 
+        (gray * 255).round(),
+        1.0
+      );
+      
+      canvas.drawRect(
+        Rect.fromLTWH(x, y, pixelWidth, pixelHeight),
+        paint
+      );
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

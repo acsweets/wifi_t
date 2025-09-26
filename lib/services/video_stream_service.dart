@@ -52,35 +52,22 @@ class VideoStreamService {
 
   Future<Uint8List?> _convertToJPEG(CameraImage image) async {
     try {
-      final width = image.width;
-      final height = image.height;
+      // 简化处理：只取Y通道数据并压缩
+      final yPlane = image.planes[0];
+      final yBytes = yPlane.bytes;
       
-      // 使用更简单的方式，直接创建一个小的测试图像
-      const testWidth = 100;
-      const testHeight = 100;
-      final rgbaBytes = Uint8List(testWidth * testHeight * 4);
+      // 取样压缩：每4个像素取1个
+      final compressedSize = (yBytes.length / 16).round();
+      final compressedData = Uint8List(compressedSize);
       
-      // 创建一个简单的渐变图像
-      for (int y = 0; y < testHeight; y++) {
-        for (int x = 0; x < testWidth; x++) {
-          final index = (y * testWidth + x) * 4;
-          final gray = ((x + y) * 255 ~/ (testWidth + testHeight)).clamp(0, 255);
-          rgbaBytes[index] = gray;     // R
-          rgbaBytes[index + 1] = gray; // G
-          rgbaBytes[index + 2] = gray; // B
-          rgbaBytes[index + 3] = 255;  // A
+      for (int i = 0; i < compressedSize; i++) {
+        final sourceIndex = i * 16;
+        if (sourceIndex < yBytes.length) {
+          compressedData[i] = yBytes[sourceIndex];
         }
       }
       
-      final codec = await ui.instantiateImageCodec(
-        rgbaBytes,
-        targetWidth: testWidth,
-        targetHeight: testHeight,
-      );
-      final frame = await codec.getNextFrame();
-      final pngBytes = await frame.image.toByteData(format: ui.ImageByteFormat.png);
-      
-      return pngBytes?.buffer.asUint8List();
+      return compressedData;
     } catch (e) {
       print('Image conversion error: $e');
       return null;
