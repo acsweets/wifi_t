@@ -1,0 +1,44 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+    {
+        "name": "Flutter",
+        "type": "dart",
+        "request": "launch",
+        "program": "lib/main.dart"
+    },
+    {
+        "name": "Flutter: Attach to Device",
+        "type": "dart",
+        "request": "attach"
+    },
+    {
+        "name": "Flutter (Android)",
+        "type": "dart",
+        "request": "launch",
+        "program": "lib/main.dart",
+        "deviceId": "5a335567"
+    },
+        {
+            "name": "wifi_t",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "wifi_t (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "wifi_t (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

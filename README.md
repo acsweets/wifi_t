@@ -7,7 +7,9 @@
 - ✅ **双向通信**: 支持发送端和接收端角色切换
 - ✅ **文本消息**: 实时文本消息传输
 - ✅ **图片传输**: 支持图片选择和传输
+- ✅ **视频流传输**: 实时摄像头视频流传输
 - ✅ **局域网发现**: 自动获取本机IP，手动输入目标IP
+- ✅ **mDNS自动发现**: 一键搜索局域网内的WiFi-T设备
 - ✅ **实时显示**: 消息实时显示，区分发送/接收方向
 - ✅ **简洁UI**: Tab切换界面，操作简单直观
 
@@ -15,7 +17,9 @@
 
 - **框架**: Flutter 3.6+
 - **通信协议**: WebSocket
+- **设备发现**: mDNS (multicast_dns)
 - **图片处理**: image_picker
+- **视频处理**: camera, video_player
 - **网络信息**: network_info_plus
 - **权限管理**: permission_handler
 
@@ -37,10 +41,18 @@ flutter run
 ```
 
 ### 4. 使用步骤
+
+#### 手动连接方式：
 1. 两台设备连接同一WiFi
 2. 设备A: 打开"接收端" → 启动服务器 → 记录IP
 3. 设备B: 打开"发送端" → 输入IP → 连接
-4. 开始发送文本和图片消息
+
+#### 自动发现方式：
+1. 两台设备连接同一WiFi
+2. 设备A: 打开"接收端" → 启动服务器
+3. 设备B: 打开"发送端" → 点击"搜索设备" → 选择设备连接
+
+4. 开始发送文本、图片和视频流消息
 
 ## 项目结构
 
@@ -49,7 +61,8 @@ lib/
 ├── models/
 │   └── message.dart          # 消息数据模型
 ├── services/
-│   └── websocket_service.dart # WebSocket通信服务
+│   ├── websocket_service.dart # WebSocket通信服务
+│   └── mdns_service.dart     # mDNS设备发现服务
 ├── screens/
 │   ├── home_screen.dart      # 主界面（Tab切换）
 │   ├── sender_screen.dart    # 发送端界面
