@@ -57,6 +57,7 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
     });
     
     try {
+      ///使用mdn扫描设备
       await _mdnsService.startDiscovery();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -169,45 +170,24 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
       print('Error starting camera: $e');
     }
   }
-  
-  Future<Uint8List> _generateRealImage() async {
-    // 使用Flutter的Canvas创建真实图像
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final size = const Size(200, 200);
-    
-    // 绘制背景
-    final paint = Paint()..color = Colors.blue;
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
-    
-    // 绘制动态圆圈
-    paint.color = Colors.white;
-    final time = DateTime.now().millisecondsSinceEpoch / 1000;
-    final x = (sin(time) * 50 + 100).toDouble();
-    final y = (cos(time) * 50 + 100).toDouble();
-    canvas.drawCircle(Offset(x, y), 20, paint);
-    
-    // 转换为PNG
-    final picture = recorder.endRecording();
-    final img = await picture.toImage(size.width.toInt(), size.height.toInt());
-    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-    
-    return byteData!.buffer.asUint8List();
-  }
-  
-  Uint8List _generateCompressedFrame() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final data = <int>[];
-    
-    data.addAll([(timestamp & 0xFF), ((timestamp >> 8) & 0xFF)]);
-    
-    for (int i = 0; i < 50; i++) {
-      data.add((i * 5) % 256);
-    }
-    
-    return Uint8List.fromList(data);
-  }
-  
+  ///TODO 1 方案  处理了再发
+  ///压缩成 JPEG/PNG 后再发送/显示
+  // import 'package:image/image.dart' as img;
+  //
+  // Uint8List convertToJpeg(Uint8List yuvBytes, int width, int height) {
+  //   final image = img.Image.fromBytes(width, height, yuvBytes); // 先把原始 YUV 转 RGB
+  //   return Uint8List.fromList(img.encodeJpg(image, quality: 70));
+  // }
+  //
+  //
+  // 然后：
+  //
+  // // 发送
+  // final jpegBytes = convertToJpeg(frameData, width, height);
+  // _webSocketService.sendBinary(jpegBytes);
+  //
+  // // 显示
+  // Image.memory(jpegBytes);
   void _stopVideoStream() {
     setState(() {
       _isVideoStreaming = false;
@@ -331,6 +311,7 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
+                ///使用插件提供的视频流预览组件
                 child: CameraPreview(_videoStreamService.controller!),
               ),
             ),

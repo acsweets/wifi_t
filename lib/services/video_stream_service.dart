@@ -87,6 +87,7 @@ class VideoStreamService {
     
     if (_controller != null) {
       try {
+        ///停止图像
         _controller!.stopImageStream().catchError((e) {
           print('Stop image stream error: $e');
         });
