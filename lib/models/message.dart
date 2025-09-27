@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-enum MessageType { text, image, video, videoFrame }
+enum MessageType { text, image, video, videoFrame, videoEnd }
 
 class Message {
   final String id;

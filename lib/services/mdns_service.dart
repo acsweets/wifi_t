@@ -29,7 +29,26 @@ class MDnsService {
     
     try {
       _client = MDnsClient();
-      await _client!.start();
+      
+      // Release模式下增加启动重试
+      int retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          await _client!.start();
+          break;
+        } catch (e) {
+          retryCount++;
+          print('mDNS client start attempt $retryCount failed: $e');
+          if (retryCount >= maxRetries) {
+            print('mDNS client failed to start, falling back to network scan');
+            await _scanTargetNetwork();
+            return;
+          }
+          await Future.delayed(Duration(milliseconds: 300 * retryCount));
+        }
+      }
       
       print('Starting mDNS discovery for $_serviceType.local');
       
@@ -185,13 +204,30 @@ class MDnsService {
       }
       
       _client ??= MDnsClient();
-      await _client!.start();
       
-      print('mDNS service advertising on port $port with device name: $_serviceName');
+      // Release模式下增加重试机制
+      int retryCount = 0;
+      const maxRetries = 3;
       
-      // 注册服务记录
-      final serviceName = '$_serviceName.$_serviceType.local';
-      print('Advertising service: $serviceName');
+      while (retryCount < maxRetries) {
+        try {
+          await _client!.start();
+          print('mDNS service advertising on port $port with device name: $_serviceName');
+          
+          // 注册服务记录
+          final serviceName = '$_serviceName.$_serviceType.local';
+          print('Advertising service: $serviceName');
+          break;
+        } catch (e) {
+          retryCount++;
+          print('mDNS start attempt $retryCount failed: $e');
+          if (retryCount >= maxRetries) {
+            print('mDNS advertising failed after $maxRetries attempts');
+            rethrow;
+          }
+          await Future.delayed(Duration(milliseconds: 500 * retryCount));
+        }
+      }
       
     } catch (e) {
       print('mDNS advertise error: $e');

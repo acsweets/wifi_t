@@ -35,14 +35,20 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
     _webSocketService.onMessageReceived = (message) {
       print('Received message type: ${message.type}, sender: ${message.sender}');
       
-      // 添加所有消息到列表用于调试
-      setState(() {
-        _messages.add(message);
-      });
-      
       if (message.type == MessageType.videoFrame) {
         print('Video frame received, data length: ${message.data?.length}');
         _decodeAndDisplayFrame(message.data);
+      } else if (message.type == MessageType.videoEnd) {
+        print('Video stream ended');
+        setState(() {
+          _isReceivingVideo = false;
+          _currentVideoFrame = null;
+        });
+      } else {
+        // 只有非视频帧消息才触发setState
+        setState(() {
+          _messages.add(message);
+        });
       }
     };
   }
@@ -99,17 +105,9 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
     if (frameData == null) return;
     print('解析’frameData');
     try {
-      final pngBytes = await CameraFrameDecoder.decodeYUVToImage(Uint8List.fromList(frameData), 160, 120);
-
-      if (pngBytes != null) {
-        setState(() {
-          _currentVideoFrame = pngBytes;
-        });
-      }
-      
+      // 直接使用原始灰度数据
       setState(() {
-        // _currentVideoFrame = decodedImage;
-
+        _currentVideoFrame = Uint8List.fromList(frameData);
         _isReceivingVideo = true;
       });
     } catch (e) {
@@ -201,7 +199,7 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
               ),
             ],
           ),
-          if (_isReceivingVideo)
+          if (_isReceivingVideo && _currentVideoFrame != null)
             Container(
               height: 220,
               margin: const EdgeInsets.symmetric(vertical: 8),
@@ -214,23 +212,22 @@ class _ReceiverScreenState extends State<ReceiverScreen> with AutomaticKeepAlive
                       color: Colors.grey[300],
                       child: Center(
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text('摄像头数据大小: ${_currentVideoFrame!.length} 字节'),
                             const SizedBox(height: 10),
-                            Container(
-                              width: 100,
+                            SizedBox(
                               height: 150,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.black),
-                              ),
+
                               ///Image.memory(Uint8List) 只能显示 合法的图片编码数据（JPEG、PNG、WebP 等）。
                               // 原始灰度/相机数据 不是 JPEG/PNG，所以 Image.memory(frameData) 无法显示，或者显示是噪点/灰色。
                               // 直接用原始 CameraImage 的 bytes 当作 Image.memory 是不行的。
                               // child: CustomPaint(
                               //   painter: DataVisualizationPainter(_currentVideoFrame!),
                               // ),
-                              child: Image.memory(_currentVideoFrame!),
+                              child: CustomPaint(
+                                painter: DataVisualizationPainter(_currentVideoFrame!),
+                                size: const Size(150, 120),
+                              ),
                             ),
                           ],
                         ),

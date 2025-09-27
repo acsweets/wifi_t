@@ -193,6 +193,18 @@ class _SenderScreenState extends State<SenderScreen> with AutomaticKeepAliveClie
       _isVideoStreaming = false;
     });
     _videoStreamService.stopVideoStream();
+    
+    // 发送视频结束消息
+    if (_webSocketService.isConnected) {
+      final message = Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        type: MessageType.videoEnd,
+        sender: '发送端',
+        timestamp: DateTime.now(),
+        isReceived: false,
+      );
+      _webSocketService.sendMessage(message);
+    }
   }
 
   @override
